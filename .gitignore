@@ -1,0 +1,10 @@
+# Data files
+data/
+*.tar.gz
+
+# Model checkpoints
+*.pth
+
+# Python cache
+__pycache__/
+*.py[cod] 

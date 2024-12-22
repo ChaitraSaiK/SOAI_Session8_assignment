@@ -56,9 +56,17 @@ def train():
     summary(model, (3, 32, 32))
     print(f"\nTotal parameters: {model.get_num_params():,}")
     
-    optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=0.01)
     criterion = nn.CrossEntropyLoss()
     scaler = torch.cuda.amp.GradScaler()
+    
+    # Cosine annealing with warm restarts
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+        optimizer,
+        T_0=10,  # Initial restart interval
+        T_mult=2,  # Multiply T_0 by this factor after each restart
+        eta_min=1e-6  # Minimum learning rate
+    )
     
     # Training loop
     best_accuracy = 0.0
@@ -81,6 +89,7 @@ def train():
             scaler.scale(loss).backward()
             scaler.step(optimizer)
             scaler.update()
+            scheduler.step()
             
             running_loss += loss.item()
             pbar.set_postfix({'loss': loss.item()})
@@ -100,6 +109,10 @@ def train():
             torch.save(model.state_dict(), "best_model.pth")
         else:
             print(f"Epoch [{epoch+1}/{NUM_EPOCHS}], Loss: {running_loss/len(train_loader):.4f}")
+        
+        # Update learning rate at the end of each epoch
+        current_lr = scheduler.get_last_lr()[0]
+        print(f"Current Learning Rate: {current_lr:.6f}")
 
 if __name__ == "__main__":
     train() 
